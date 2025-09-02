@@ -1,0 +1,25 @@
+{
+  "title": "ST Bridge",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up ST Bridge",
+        "description": "Enter the shared token and TCP port for the bridge server.",
+        "data": {
+          "token": "Shared token",
+          "port": "TCP port"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Select entities to expose",
+        "data": {
+          "entities": "Entities"
+        }
+      }
+    }
+  }
+}
