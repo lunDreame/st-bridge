@@ -63,37 +63,39 @@ class BridgeServer:
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         """Handle a new client connection."""
         peer = writer.get_extra_info("peername")
-        LOGGER.info("Client connected: %s", peer)
+        #LOGGER.info("Client connected: %s", peer)
+
         async with self._lock: 
             self._clients.add(writer)
-        await self._send(writer, {"type":"hello","bridge":"st-bridge","version":"0.0.2"})
+        await self._send(writer, {"type":"hello","bridge":"st-bridge","version":"0.0.3"})
         await self._send(writer, {"type":"entity_list","entities": self._get()})
+
+        buffer = b""
         try:
-            buf = b""
             while not reader.at_eof():
-                chunk = await reader.read(1024)
+                try:
+                    chunk = await reader.read(1024)
+                except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                    break
+                except Exception as e:
+                    LOGGER.debug("Read error from %s: %r", peer, e)
+                    break
+
                 if not chunk:
-                    await asyncio.sleep(0.05)
-                    continue
-                buf += chunk
+                    break
+
+                buffer += chunk
                 while True:
-                    nl = buf.find(b"\n")
-                    if nl < 0: 
+                    nl = buffer.find(b"\n")
+                    if nl < 0:
                         break
-                    line = buf[:nl].decode(errors="ignore").strip() # type: ignore
-                    buf = buf[nl+1:]
-                    if not line: 
+                    line = buffer[:nl].decode(errors="ignore").strip()
+                    buffer = buffer[nl + 1 :]
+                    if not line:
                         continue
                     await self._on_line(writer, line)
         finally:
-            async with self._lock: 
-                self._clients.discard(writer)
-            try: 
-                writer.close()
-                await writer.wait_closed()
-            except Exception: 
-                pass
-            LOGGER.info("Client disconnected: %s", peer)
+            await self._safe_close(writer, peer)
 
     async def _on_line(self, writer: asyncio.StreamWriter, line: str) -> None:
         """Handle a line of input from a client."""
@@ -115,6 +117,29 @@ class BridgeServer:
             else:
                 await self._send(writer, {"type":"error","code":"bad_command"})
             return
+
+    async def _safe_send(self, writer: asyncio.StreamWriter, obj: JsonObj) -> None:
+        """Send a JSON object to a client, ignoring errors."""
+        try:
+            writer.write((json.dumps(obj, ensure_ascii=False) + "\n").encode())
+            await writer.drain()
+        except Exception:
+            pass
+
+    async def _safe_close(self, writer: asyncio.StreamWriter, peer) -> None:
+        """Close the connection to a client, ignoring errors."""
+        async with self._lock:
+            self._clients.discard(writer)
+        try:
+            writer.close()
+        except Exception:
+            pass
+        try:
+            if hasattr(writer, "wait_closed"):
+                await asyncio.wait_for(writer.wait_closed(), timeout=0.5)
+        except Exception:
+            pass
+        #LOGGER.info("Client disconnected: %s", peer)
 
     async def _send(self, writer: asyncio.StreamWriter, obj: JsonObj) -> None:
         """Send a JSON object to a client."""

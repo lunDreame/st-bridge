@@ -38,6 +38,7 @@ class BridgeCoordinator:
             call_service=self.call_service, # type: ignore
         )
         await self._server.start()
+        
         self._unsub_state = self.hass.bus.async_listen("state_changed", self._on_state_changed)
         LOGGER.info("ST Bridge started on port %s (entities=%d)", self.port, len(self.entry.options.get(CONF_ENTITIES, [])))
 
