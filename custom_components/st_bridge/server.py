@@ -2,23 +2,32 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from .const import LOGGER
 
 JsonObj = dict[str, Any]
 GetEntitiesCB = Callable[[], list[JsonObj]]
+GetStateMsgsCB = Callable[[], list[JsonObj]]
 CallServiceCB = Callable[[str, str, dict[str, Any]], asyncio.Future | None]
 
 class BridgeServer:
     """TCP server for st-bridge protocol."""
 
-    def __init__(self, hass, port: int, get_entities: GetEntitiesCB, call_service: CallServiceCB) -> None:
+    def __init__(
+        self,
+        hass,
+        port: int,
+        get_entities: GetEntitiesCB,
+        call_service: CallServiceCB,
+        get_state_messages: Optional[GetStateMsgsCB] = None,
+    ) -> None:
         """Initialize the BridgeServer."""
         self._hass = hass
         self._port = port
         self._get = get_entities
         self._call = call_service
+        self._get_states = get_state_messages
         self._server: asyncio.base_events.Server | None = None
         self._clients: set[asyncio.StreamWriter] = set()
         self._lock = asyncio.Lock()
@@ -67,8 +76,15 @@ class BridgeServer:
 
         async with self._lock: 
             self._clients.add(writer)
-        await self._send(writer, {"type":"hello","bridge":"st-bridge","version":"0.0.3"})
+        await self._send(writer, {"type":"hello","bridge":"st-bridge","version":"0.0.4"})
         await self._send(writer, {"type":"entity_list","entities": self._get()})
+        if self._get_states:
+            try:
+                await asyncio.sleep(0.8)
+                for msg in self._get_states():
+                    await self._safe_send(writer, msg)
+            except Exception:
+                pass
 
         buffer = b""
         try:

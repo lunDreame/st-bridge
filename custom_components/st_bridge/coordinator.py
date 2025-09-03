@@ -35,7 +35,8 @@ class BridgeCoordinator:
             hass=self.hass,
             port=self.port,
             get_entities=self.get_entities,
-            call_service=self.call_service, # type: ignore
+            call_service=self.call_service,  # type: ignore
+            get_state_messages=self.get_state_messages,
         )
         await self._server.start()
         
@@ -228,6 +229,23 @@ class BridgeCoordinator:
         await self.hass.services.async_call(domain, service, data, blocking=False)
 
     # =========== State forward ===========
+    def get_state_messages(self) -> list[dict[str, Any]]:
+        msgs: list[dict[str, Any]] = []
+        selected = set(self.entry.options.get(CONF_ENTITIES, []))
+        now_ts = int(dt_util.utcnow().timestamp())
+        for ent_id in sorted(selected):
+            st: State | None = self.hass.states.get(ent_id)
+            if not st:
+                continue
+            msgs.append({
+                "type": "state",
+                "entity_id": ent_id,
+                "state": st.state,
+                "attributes": st.attributes,
+                "ts": now_ts,
+            })
+        return msgs
+
     @callback
     async def _on_state_changed(self, event) -> None:
         """Handle state change events."""
