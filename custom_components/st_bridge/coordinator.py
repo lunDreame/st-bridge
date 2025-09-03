@@ -7,7 +7,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_TOKEN,
     CONF_PORT,
     CONF_ENTITIES,
     SUPPORTED_DOMAINS,
@@ -23,7 +22,6 @@ class BridgeCoordinator:
         """Initialize the BridgeCoordinator."""
         self.hass = hass
         self.entry = entry
-        self.token: str = entry.data[CONF_TOKEN]
         self.port: int = entry.data[CONF_PORT]
         self._unsub_state: Callable[[], None] | None = None
         self._ssdp: SSDPResponder | None = None
@@ -36,7 +34,6 @@ class BridgeCoordinator:
         self._server = BridgeServer(
             hass=self.hass,
             port=self.port,
-            token=self.token,
             get_entities=self.get_entities,
             call_service=self.call_service, # type: ignore
         )
@@ -59,14 +56,6 @@ class BridgeCoordinator:
 
     async def async_handle_entry_update(self) -> None:
         """Handle updates to the config entry."""
-        token = self.entry.data[CONF_TOKEN]
-        port = self.entry.data[CONF_PORT]
-        if token != self.token or port != self.port:
-            await self.async_stop()
-            self.token = token
-            self.port = port
-            await self.async_start()
-            return
         if self._server:
             await self._server.broadcast_entity_list(self.get_entities())
 

@@ -14,7 +14,6 @@ from homeassistant.helpers.selector import selector
 
 from .const import (
     DOMAIN,
-    CONF_TOKEN,
     CONF_PORT,
     CONF_ENTITIES,
     DEFAULT_PORT,
@@ -44,11 +43,10 @@ class STBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
                 title="ST Bridge",
-                data={CONF_TOKEN: user_input[CONF_TOKEN], CONF_PORT: user_input[CONF_PORT]},
+                data={CONF_PORT: user_input[CONF_PORT]},
                 options={CONF_ENTITIES: []},
             )
         schema = vol.Schema({
-            vol.Required(CONF_TOKEN): str,
             vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
         })
         return self.async_show_form(step_id="user", data_schema=schema)

@@ -4,9 +4,8 @@
     "step": {
       "user": {
         "title": "Set up ST Bridge",
-        "description": "Enter the shared token and TCP port for the bridge server.",
+        "description": "Enter the TCP port for the bridge server.",
         "data": {
-          "token": "Shared token",
           "port": "TCP port"
         }
       }

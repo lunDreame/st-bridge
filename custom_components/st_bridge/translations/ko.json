@@ -4,9 +4,8 @@
     "step": {
       "user": {
         "title": "ST Bridge 설정",
-        "description": "브릿지 서버용 공유 토큰과 TCP 포트를 입력하세요.",
+        "description": "브릿지 서버용 TCP 포트를 입력하세요.",
         "data": {
-          "token": "공유 토큰",
           "port": "TCP 포트"
         }
       }

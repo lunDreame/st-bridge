@@ -3,7 +3,6 @@ import logging
 
 DOMAIN = "st_bridge"
 
-CONF_TOKEN = "token"
 CONF_PORT = "port"
 CONF_ENTITIES = "entities"
 

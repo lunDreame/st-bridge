@@ -13,11 +13,10 @@ CallServiceCB = Callable[[str, str, dict[str, Any]], asyncio.Future | None]
 class BridgeServer:
     """TCP server for st-bridge protocol."""
 
-    def __init__(self, hass, port: int, token: str, get_entities: GetEntitiesCB, call_service: CallServiceCB) -> None:
+    def __init__(self, hass, port: int, get_entities: GetEntitiesCB, call_service: CallServiceCB) -> None:
         """Initialize the BridgeServer."""
         self._hass = hass
         self._port = port
-        self._token = token
         self._get = get_entities
         self._call = call_service
         self._server: asyncio.base_events.Server | None = None
@@ -65,32 +64,9 @@ class BridgeServer:
         """Handle a new client connection."""
         peer = writer.get_extra_info("peername")
         LOGGER.info("Client connected: %s", peer)
-        await self._send(writer, {"type":"hello","bridge":"st-bridge","version":"1.1","token_required":True})
-        try:
-            line = await asyncio.wait_for(reader.readline(), timeout=30)
-        except asyncio.TimeoutError:
-            writer.close()
-            await writer.wait_closed()
-            return
-        if not line: 
-            writer.close()
-            await writer.wait_closed()
-            return
-        try:
-            msg = json.loads(line.decode().strip() or "{}")
-        except Exception:
-            await self._send(writer, {"type":"error","code":"bad_json"})
-            writer.close()
-            await writer.wait_closed()
-            return
-        if msg.get("type")!="auth" or msg.get("token")!=self._token:
-            await self._send(writer, {"type":"error","code":"unauthorized"})
-            writer.close()
-            await writer.wait_closed()
-            return
-        await self._send(writer, {"type":"auth_ok"})
         async with self._lock: 
             self._clients.add(writer)
+        await self._send(writer, {"type":"hello","bridge":"st-bridge","version":"0.0.2"})
         await self._send(writer, {"type":"entity_list","entities": self._get()})
         try:
             buf = b""
